@@ -9,6 +9,10 @@ head(df)
 
 dim(df)
 
+file_names <- c("2023_2024.csv", "2016_2017.csv", "2017_2018.csv", "2018_2019.csv", "2019_2020.csv", "2020_2021.csv", "2021_2022.csv", "2022_2023.csv")
+
+# Read and combine CSV files row-wise
+match_results_df <- bind_rows(lapply(file_names, read.csv))
 
 premierLeague <- c(
   "Arsenal", "Bournemouth", "Brighton & Hove Albion", "Burnley",
@@ -95,6 +99,51 @@ summary_stats <- df %>%
   summarise_at(vars(Sprint_Speed:Short_Passing), funs(mean)) %>% 
   gather(variables, values, -Class)
 
+
+# Function to predict match outcome percentages
+predict_match_outcome <- function(home_team, away_team) {
+  
+  match_results_df <- match_results_df %>%
+    mutate_at(vars(FTHG, FTAG), as.numeric)
+  
+  # Create the dataframe for modeling
+  match_results_df_model <- match_results_df %>%
+    rowwise() %>%
+    mutate(
+      team = list(c(HomeTeam, AwayTeam)),
+      opponent = list(c(AwayTeam, HomeTeam)),
+      goals = list(c(FTHG, FTAG)),
+      home = list(c(1, 0))
+    ) %>%
+    unnest(cols = c(team, opponent, goals, home))
+  
+  # Train the model
+  model <- glm(goals ~ home + team + opponent, 
+               family = poisson(link=log),
+               data=match_results_df_model)
+  
+  # Predict the number of goals for the specific match
+  home_data <- data.frame(home = 1, team = home_team, opponent = away_team)
+  away_data <- data.frame(home = 0, team = away_team, opponent = home_team)
+  
+  prediction_home <- predict(model, home_data, type = 'response')
+  prediction_away <- predict(model, away_data, type = 'response')
+  
+  k <- 0:7  # Example values for the number of goals
+  
+  # Calculate the probability mass function (PMF) using dpois
+  pmf <- dpois(k, prediction_home) %o% dpois(k, prediction_away)
+  
+  draw <- sum(diag(pmf))
+  away <- sum(pmf[upper.tri(pmf)])
+  home <- sum(pmf[lower.tri(pmf)])
+  
+  # Return the percentages
+  result <- c(home = home * 100, draw = draw * 100, away = away * 100)
+  return(result)
+}
+
+
 # Defining the UI variables
 
 sidebar <- dashboardSidebar(
@@ -170,8 +219,8 @@ body <- dashboardBody(
                 ,status = "primary"
                 ,solidHeader = TRUE 
                 ,collapsible = TRUE 
-                ,selectInput("club_selector_A", "Team A", choices = unique(sort(df$Club)))
-                ,selectInput("club_selector_B", "Team B", choices = unique(sort(df$Club)))
+                ,selectInput("club_selector_A", "Team A", choices = unique(sort(match_results_df$HomeTeam)))
+                ,selectInput("club_selector_B", "Team B", choices = unique(sort(match_results_df$HomeTeam)))
                 ,plotlyOutput(outputId = "match_prediction")
                 ,style = "height: 25vh;"
               ),
@@ -272,15 +321,99 @@ server <- function(input, output, session) {
       labs(fill = NULL, x = NULL, title = selected_club)
   })
   
+  observe({
+    team_A <- input$club_selector_A
+    # Get the list of teams excluding the selected team in Team A
+    teams_B <- setdiff(unique(sort(match_results_df$HomeTeam)), team_A)
+    # Update the choices for Team B
+    updateSelectInput(session, "club_selector_B", choices = teams_B)
+  })
   
   output$match_prediction_outcome <- renderValueBox({
+    
+    team_A <- input$club_selector_A
+    team_B <- input$club_selector_B
+    
+    # Check if Team A and Team B are the same
+    #if (team_A == team_B) {
+    #  return(valueBox(
+    #    p("Oops! You have selected same teams."),
+    #    icon = icon("exclamation-triangle", lib = "font-awesome", class = "fas"),
+    #    color = "yellow",
+    #    subtitle = "Please select different teams for prediction."
+    #  ))
+    #}
+    
+    result <- predict_match_outcome(team_A, team_B)
+    
+    home_progress <- result['home']
+    draw_progress <- result['draw']
+    away_progress <- result['away']
+    
+    # Calculate the width of each segment based on the percentage ratio
+    home_width <- home_progress
+    draw_width <- 100 - (home_progress + away_progress)
+    away_width <- away_progress
+    
+    # Define colors for each segment
+    home_color <- "green"
+    draw_color <- "orange"
+    away_color <- "red"
+    
+    progress_text <- HTML(paste0(
+      team_A, ": ", round(home_progress, 2), "%<br>",
+      "Draw: ", round(draw_progress, 2), "%<br>",
+      team_B, ": ", round(away_progress, 2), "%"
+    ))
+    
+    progress_html <- tags$div(
+      style = "margin-top: 20px; height: 22vh;",
+      div(
+        class = "progress",
+        div(
+          class = "progress-bar",
+          role = "progressbar",
+          "aria-valuenow" = home_progress,
+          "aria-valuemin" = "0",
+          "aria-valuemax" = "100",
+          style = paste0("width: ", home_width, "%; background-color: ", home_color, "; height: 30px;"),
+          paste0(team_A)
+        ),
+        div(
+          class = "progress-bar",
+          role = "progressbar",
+          "aria-valuenow" = draw_progress,
+          "aria-valuemin" = "0",
+          "aria-valuemax" = "100",
+          style = paste0("width: ", draw_width, "%; background-color: ", draw_color, "; height: 30px;"),
+          paste0("Draw")
+        ),
+        div(
+          class = "progress-bar",
+          role = "progressbar",
+          "aria-valuenow" = away_progress,
+          "aria-valuemin" = "0",
+          "aria-valuemax" = "100",
+          style = paste0("width: ", away_width, "%; background-color: ", away_color, "; height: 30px;"),
+          paste0(team_B)
+        )
+      ),
+      div(
+        style = "margin-top: 10px; text-align: center; font-size: 18px; font-weight: bold; color: white;",
+        progress_text
+      )
+      
+    )
+    
     valueBox(
-      paste0(input$club_selector_A, " v/s ", input$club_selector_B, ""),
-      "Match Outcome: ## wins", 
-      icon = icon("futbol", lib="font-awesome", class="fas futbol fa-spin"),
+      p("Match Prediction Outcome"),
+      progress_html,
+      #icon = icon("futbol", lib = "font-awesome", class = "fas futbol fa-spin"),
       color = "blue"
     )
   })
+  
+
 }
 
 
