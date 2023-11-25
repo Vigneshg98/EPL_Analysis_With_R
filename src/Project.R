@@ -59,15 +59,8 @@ midfielder <- c("CM", "CDM","CAM","LM","RM", "LAM", "RAM", "LCM", "RCM", "LDM", 
 df %<>% mutate(Class = if_else(Position %in% "GK", "Goal Keeper",
                                if_else(Position %in% defence, "Defender",
                                        if_else(Position %in% midfielder, "Midfielder", "Forward"))))
-
 rm(defence, midfielder)
 
-df %<>%
-  mutate(Height = round((as.numeric(str_sub(Height, start=1,end = 1))*30.48) + (as.numeric(str_sub(Height, start = 3, end = 5))* 2.54)),
-         Weight = round(as.numeric(str_sub(Weight, start = 1, end = 3)) / 2.204623))
-
-df %<>% filter(Preferred_Foot %in% c("Left", "Right")) 
-df$Preferred_Foot <- as.factor(as.character(df$Preferred_Foot))
 
 # Preparing the world map plot for players in the region
 world_map <- map_data("world")
@@ -97,7 +90,7 @@ summary_stats <- df %>%
   select(Class, Sprint_Speed, Dribbling, Shot_Power, Finishing, Balance, Short_Passing) %>% 
   group_by(Class) %>% 
   summarise_at(vars(Sprint_Speed:Short_Passing), funs(mean)) %>% 
-  gather(variables, values, -Class)
+  gather(Features, values, -Class)
 
 
 # Function to predict match outcome percentages
@@ -132,6 +125,7 @@ predict_match_outcome <- function(home_team, away_team) {
   k <- 0:7  # Example values for the number of goals
   
   # Calculate the probability mass function (PMF) using dpois
+  # %o% is used to compute the outer product of the two resulting probability vectors. The result is a matrix where each element (i, j) represents the joint probability of the home team scoring i goals and the away team scoring j goals.
   pmf <- dpois(k, prediction_home) %o% dpois(k, prediction_away)
   
   draw <- sum(diag(pmf))
@@ -202,7 +196,7 @@ body <- dashboardBody(
                 ,plotlyOutput(outputId = "summary_stats_position")
               ),
               box(
-                title = "Players Potential Comparison"
+                title = "Players Potential"
                 ,status = "primary"
                 ,solidHeader = TRUE 
                 ,collapsible = TRUE 
@@ -241,7 +235,7 @@ server <- function(input, output, session) {
   output$world_map_plot <- renderPlotly({
     ggplot(numofplayers, aes(long, lat, group = group))+
       geom_polygon(aes(fill = `Number of Player` ), color = "White", show.legend = FALSE)+
-      scale_fill_viridis_c(option = "C")+
+      scale_fill_viridis_c(option = "D")+
       theme_void()+
       labs(fill = "Number of Players",
            title = "Number of Players")
@@ -251,26 +245,25 @@ server <- function(input, output, session) {
     ggplot(df, aes(Age, Wages))+
       geom_hex()+
       facet_wrap(League~., scales = "free")+
-      scale_fill_viridis_c()+
+      scale_fill_viridis_c(option = 'D')+
       theme_minimal()+
       labs(title = "Age v/s Wage")
-    
   })
   
   output$shotpower_vs_finishing_plot <- renderPlotly({
     selected_club <- input$club_selector
     # Preparing the shot power v/s finishing
-    kor <- df %>% 
+    forward_df <- df %>% 
       filter(Club == selected_club, Class == "Forward") %>% 
       select(Name, Preferred_Foot, Finishing, Shot_Power)
     
-    shapiro.test(kor$Finishing); shapiro.test(kor$Shot_Power)
+    shapiro.test(forward_df$Finishing); shapiro.test(forward_df$Shot_Power)
     
-    cor.test(kor$Shot_Power, kor$Finishing, method = "pearson")
-    cor.test(kor$Shot_Power, kor$Finishing, method = "kendall")
-    hypo <- cor.test(kor$Shot_Power, kor$Finishing, method = "spearman")
+    cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")
+    cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")
+    hypo <- cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "spearman")
     
-    ggplot(kor, aes(Shot_Power, Finishing, color = Preferred_Foot))+
+    ggplot(forward_df, aes(Shot_Power, Finishing, color = Preferred_Foot))+
       geom_text(aes(label = Name))+
       theme_minimal()+
       theme(legend.position = "bottom")+
@@ -295,7 +288,7 @@ server <- function(input, output, session) {
   })
   
   output$summary_stats_position <- renderPlotly({
-    ggplot(summary_stats, aes(x = Class, y = values, fill = variables)) +
+    ggplot(summary_stats, aes(x = Class, y = values, fill = Features)) +
       geom_bar(stat = "identity", position = "dodge") +
       scale_fill_viridis_d(option = "C") +
       theme_minimal() +
@@ -361,6 +354,7 @@ server <- function(input, output, session) {
     away_color <- "red"
     
     progress_text <- HTML(paste0(
+      "Win percentage of the team<br>",
       team_A, ": ", round(home_progress, 2), "%<br>",
       "Draw: ", round(draw_progress, 2), "%<br>",
       team_B, ": ", round(away_progress, 2), "%"
@@ -412,7 +406,6 @@ server <- function(input, output, session) {
       color = "blue"
     )
   })
-  
 
 }
 
