@@ -41,22 +41,17 @@ head(df)
 df$Values <- str_remove_all(df$Value,"€")
 df$Values <- str_replace_all(df$Values,"K", "000")
 df$Values <- str_remove_all(df$Values,"M")
-
 df$Values <- as.numeric(df$Values)
 
 # Player Wage
 df$Wages <- str_remove_all(df$Wage,"€")
 df$Wages <- str_replace_all(df$Wages,"K", "000")
-
 df$Wages <- as.numeric(df$Wages)
-
 df <- df  %>% mutate(Values = if_else(df$Values < 1000 , Values * 1000000, Values))
 
 unique(df$Position)
-
 defence <- c("CB", "RB", "LB", "LWB", "RWB", "LCB", "RCB")
 midfielder <- c("CM", "CDM","CAM","LM","RM", "LAM", "RAM", "LCM", "RCM", "LDM", "RDM")
-
 df %<>% mutate(Class = if_else(Position %in% "GK", "Goal Keeper",
                                if_else(Position %in% defence, "Defender",
                                        if_else(Position %in% midfielder, "Midfielder", "Forward"))))
@@ -65,7 +60,6 @@ rm(defence, midfielder)
 
 # Preparing the world map plot for players in the region
 world_map <- map_data("world")
-
 numofplayers <- world_map %>% 
   mutate(region = as.character(region)) %>% 
   left_join((df %>% mutate(Nationality = as.character(Nationality),
@@ -112,7 +106,7 @@ predict_match_outcome <- function(home_team, away_team) {
   prediction_home <- predict(model, home_data, type = 'response')
   prediction_away <- predict(model, away_data, type = 'response')
   
-  k <- 0:7  # Example values for the number of goals
+  k <- 0:7  # Sample value for the number of goals
   
   # Calculate the probability mass function (PMF) using dpois
   # %o% is used to compute the outer product of the two resulting probability vectors. The result is a matrix where each element (i, j) represents the joint probability of the home team scoring i goals and the away team scoring j goals.
@@ -140,6 +134,7 @@ sidebar <- dashboardSidebar(
 
 body <- dashboardBody(
   tabItems(
+    # Inside the 'League' tab in the UI
     tabItem(tabName = "League",
             fluidRow(
               box(
@@ -200,6 +195,7 @@ body <- dashboardBody(
               )
             )
     ),
+    # Inside the 'Prediction' tab in the UI
     tabItem(tabName = 'Prediction',
             fluidRow(
               box(
@@ -226,6 +222,7 @@ ui = dashboardPage(skin= "blue",
 )
 
 server <- function(input, output, session) {
+  
   output$world_map_plot <- renderPlotly({
     ggplot(numofplayers, aes(long, lat, group = group))+
       geom_polygon(aes(fill = `Number of Player` ), color = "White", show.legend = FALSE)+
@@ -235,28 +232,26 @@ server <- function(input, output, session) {
            title = "Number of Players")
   })
   
-output$age_vs_wage_plot <- renderPlotly({
-  gg <- ggplot(df, aes(Age, Wages)) +
-    geom_hex() +
-    facet_wrap(League ~ ., scales = "free") +
-    scale_fill_viridis_c(option = 'D') +
-    theme_minimal() +
-    labs(title = "Age v/s Wage") +
-    scale_y_continuous(labels = scales::label_number_si())
-
-  ggplotly(gg)
-})
-
+  output$age_vs_wage_plot <- renderPlotly({
+    gg <- ggplot(df, aes(Age, Wages)) +
+      geom_hex() +
+      facet_wrap(League ~ ., scales = "free") +
+      scale_fill_viridis_c(option = 'D') +
+      theme_minimal() +
+      labs(title = "Age v/s Wage") +
+      scale_y_continuous(labels = scales::label_number_si())
+    ggplotly(gg)
+  })
+  
   
   output$shotpower_vs_finishing_plot <- renderPlotly({
     selected_club <- input$club_selector
-    # Preparing the shot power v/s finishing
     forward_df <- df %>% 
       filter(Club == selected_club, Class == "Forward") %>% 
       select(Name, Preferred_Foot, Finishing, Shot_Power)
     
+    # correlation tests to understand the relationship b/w shot_power and finishing
     shapiro.test(forward_df$Finishing); shapiro.test(forward_df$Shot_Power)
-    
     cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")
     cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")
     hypo <- cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "spearman")
@@ -328,7 +323,7 @@ output$age_vs_wage_plot <- renderPlotly({
       labs(x = NULL, y = NULL)
   })
   
-  
+
   output$player_potential_comparison <- renderPlotly({
     selected_club <- input$player_club_selector
     club_df <- df %>% 
@@ -359,16 +354,6 @@ output$age_vs_wage_plot <- renderPlotly({
     
     team_A <- input$club_selector_A
     team_B <- input$club_selector_B
-    
-    # Check if Team A and Team B are the same
-    #if (team_A == team_B) {
-    #  return(valueBox(
-    #    p("Oops! You have selected same teams."),
-    #    icon = icon("exclamation-triangle", lib = "font-awesome", class = "fas"),
-    #    color = "yellow",
-    #    subtitle = "Please select different teams for prediction."
-    #  ))
-    #}
     
     result <- predict_match_outcome(team_A, team_B)
     
@@ -435,7 +420,6 @@ output$age_vs_wage_plot <- renderPlotly({
     valueBox(
       p("Match Prediction Outcome"),
       progress_html,
-      #icon = icon("futbol", lib = "font-awesome", class = "fas futbol fa-spin"),
       color = "blue"
     )
   })
