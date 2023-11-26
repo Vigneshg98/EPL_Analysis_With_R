@@ -3,6 +3,7 @@ library(tidyverse)
 library(magrittr)
 library(shinydashboard)
 library(plotly)
+library(scales)
 
 df <- read.csv("fifa19_epl.csv", encoding = "UTF-8")[-1]
 head(df)
@@ -234,14 +235,18 @@ server <- function(input, output, session) {
            title = "Number of Players")
   })
   
-  output$age_vs_wage_plot <- renderPlotly({
-    ggplot(df, aes(Age, Wages))+
-      geom_hex()+
-      facet_wrap(League~., scales = "free")+
-      scale_fill_viridis_c(option = 'D')+
-      theme_minimal()+
-      labs(title = "Age v/s Wage")
-  })
+output$age_vs_wage_plot <- renderPlotly({
+  gg <- ggplot(df, aes(Age, Wages)) +
+    geom_hex() +
+    facet_wrap(League ~ ., scales = "free") +
+    scale_fill_viridis_c(option = 'D') +
+    theme_minimal() +
+    labs(title = "Age v/s Wage") +
+    scale_y_continuous(labels = scales::label_number_si())
+
+  ggplotly(gg)
+})
+
   
   output$shotpower_vs_finishing_plot <- renderPlotly({
     selected_club <- input$club_selector
