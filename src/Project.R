@@ -74,17 +74,6 @@ numofplayers <- world_map %>%
                rename(region = Nationality) %>%
                mutate(region = as.character(region))), by = "region")
 
-
-# Selection of the players
-players <- df %>% 
-  filter(Name %in% c("E. Hazard", "O. Giroud")) %>% 
-  # Unite Name & Club variables
-  mutate(Name = paste0(Name, ", ", Club)) %>%
-  # Selection abilities of the players
-  select(Name,Skill_Moves,Crossing,Finishing,Heading_Accuracy,Short_Passing,Volleys,Dribbling,Curve,FK_Accuracy,Long_Passing,Ball_Control,Acceleration,Sprint_Speed,Agility,Reactions,Balance,Shot_Power,Jumping,Stamina,Strength,Long_Shots,Aggression,Interceptions,Positioning,Vision,Penalties,Composure,Marking,Standing_Tackle,Sliding_Tackle) %>% 
-  # Transform from Variable to Observation
-  gather(Exp,Skill_Moves,Crossing,Finishing,Heading_Accuracy,Short_Passing,Volleys,Dribbling,Curve,FK_Accuracy,Long_Passing,Ball_Control,Acceleration,Sprint_Speed,Agility,Reactions,Balance,Shot_Power,Jumping,Stamina,Strength,Long_Shots,Aggression,Interceptions,Positioning,Vision,Penalties,Composure,Marking,Standing_Tackle,Sliding_Tackle, -Name)
-
 summary_stats <- df %>% 
   filter(League == "Premier League") %>% 
   select(Class, Sprint_Speed, Dribbling, Shot_Power, Finishing, Balance, Short_Passing) %>% 
@@ -187,8 +176,9 @@ body <- dashboardBody(
                 status = "primary",
                 solidHeader = TRUE,
                 collapsible = TRUE,
-                selectInput("player_selector_A", "Select Player A:", choices = unique(sort(df$Name))),
-                selectInput("player_selector_B", "Select Player B:", choices = unique(sort(df$Name))),
+                selectInput("player_team_selector", "Select Team:", choices = unique(sort(df$Club))),
+                uiOutput("player_selector_A_ui"),
+                uiOutput("player_selector_B_ui"),
                 plotlyOutput(outputId = "players_comparison")
               ),
               box(
@@ -277,36 +267,51 @@ server <- function(input, output, session) {
            subtitle = "p-value < 0.05")
   })
   
+  # Create dynamic UI for player selection based on the selected team
+  output$player_selector_A_ui <- renderUI({
+    team_selected <- input$player_team_selector
+    players_from_team <- unique(sort(df$Name[df$Club == team_selected]))
+    
+    selectInput("player_selector_A", "Select Player A:", choices = players_from_team)
+  })
+  
+  output$player_selector_B_ui <- renderUI({
+    team_selected <- input$player_team_selector
+    players_from_team <- unique(sort(df$Name[df$Club == team_selected]))
+    
+    selectInput("player_selector_B", "Select Player B:", choices = players_from_team)
+  })
+  
+  observe({
+    players_from_team_1 <- input$player_selector_A
+    players_from_team_2 <- setdiff(unique(sort(df$Name[df$Club == input$player_team_selector])), players_from_team_1)
+    updateSelectInput(session, "player_selector_B", choices = players_from_team_2)
+  })
+  
   output$players_comparison <- renderPlotly({
     player_A <- input$player_selector_A
     player_B <- input$player_selector_B
     
-    # Filter the data for the selected players
-    players_df <- df %>%
-      filter(Name %in% c(player_A, player_B)) %>%
-      gather(Exp, Value, -Name)
-    
-    # Convert Value column to numeric
-    players_df$Value <- as.numeric(players_df$Value)
-    
-    # Normalize values to be between 0 and 1
-    players_df <- players_df %>%
-      group_by(Exp) %>%
-      mutate(Value = Value / sum(Value, na.rm = TRUE))
-    
-    # Remove empty bars
-    players_df <- players_df %>%
-      filter(Value > 0)
+    # Selection of the players
+    players_df <- df %>% 
+      filter(Name %in% c(player_A, player_B)) %>% 
+      # Unite Name & Club variables
+      mutate(Name = paste0(Name, ", ", Club)) %>%
+      # Selection abilities of the players
+      select(Name,Skill_Moves,Crossing,Finishing,Heading_Accuracy,Short_Passing,Volleys,Dribbling,Curve,FK_Accuracy,Long_Passing,Ball_Control,Acceleration,Sprint_Speed,Agility,Reactions,Balance,Shot_Power,Jumping,Stamina,Strength,Long_Shots,Aggression,Interceptions,Positioning,Vision,Penalties,Composure,Marking,Standing_Tackle,Sliding_Tackle) %>% 
+      # Transform from Variable to Observation
+      gather(Exp,Skill_Moves,Crossing,Finishing,Heading_Accuracy,Short_Passing,Volleys,Dribbling,Curve,FK_Accuracy,Long_Passing,Ball_Control,Acceleration,Sprint_Speed,Agility,Reactions,Balance,Shot_Power,Jumping,Stamina,Strength,Long_Shots,Aggression,Interceptions,Positioning,Vision,Penalties,Composure,Marking,Standing_Tackle,Sliding_Tackle, -Name)
     
     # Plot the comparison
-    ggplot(players_df, aes(x = Exp, y = Value, fill = Name)) +
-      geom_bar(stat = "identity", position = "stack", width = 0.7) +
-      scale_fill_manual(values = c("khaki", "seagreen")) +
-      theme_minimal() +
-      theme(legend.position = "none", axis.text.x = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank(), axis.text.y = element_blank()) +
-      labs(title = paste(player_A, "VS", player_B),
-           fill = NULL, x = NULL, y = NULL) +
-      ylim(0, 1)  # Set y-axis limits from 0 to 1
+    ggplot(players_df, aes(Exp, Skill_Moves, fill = Name))+
+      geom_col(position = "fill")+
+      coord_flip()+
+      scale_fill_manual(values = c("khaki", "seagreen"))+
+      theme_minimal()+
+      geom_hline(yintercept = 0.5, color = "white", size = 1, linetype = 2)+
+      theme(legend.position = "top", axis.text.x=element_blank())+
+      labs(title = paste(player_A, "VS", player_B), 
+           fill = NULL,x = NULL, y = NULL)
   })
   
   
@@ -435,3 +440,4 @@ server <- function(input, output, session) {
 
 # Run the Shiny app
 shinyApp(ui = ui, server = server)
+
