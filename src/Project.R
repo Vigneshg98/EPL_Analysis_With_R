@@ -82,7 +82,7 @@ players <- df %>%
   mutate(Name = paste0(Name, ", ", Club)) %>%
   # Selection abilities of the players
   select(Name,Skill_Moves,Crossing,Finishing,Heading_Accuracy,Short_Passing,Volleys,Dribbling,Curve,FK_Accuracy,Long_Passing,Ball_Control,Acceleration,Sprint_Speed,Agility,Reactions,Balance,Shot_Power,Jumping,Stamina,Strength,Long_Shots,Aggression,Interceptions,Positioning,Vision,Penalties,Composure,Marking,Standing_Tackle,Sliding_Tackle) %>% 
-  # Tranform from Variable to Observation
+  # Transform from Variable to Observation
   gather(Exp,Skill_Moves,Crossing,Finishing,Heading_Accuracy,Short_Passing,Volleys,Dribbling,Curve,FK_Accuracy,Long_Passing,Ball_Control,Acceleration,Sprint_Speed,Agility,Reactions,Balance,Shot_Power,Jumping,Stamina,Strength,Long_Shots,Aggression,Interceptions,Positioning,Vision,Penalties,Composure,Marking,Standing_Tackle,Sliding_Tackle, -Name)
 
 summary_stats <- df %>% 
@@ -179,30 +179,33 @@ body <- dashboardBody(
               )
             )
     ),
+    # Inside the 'Players' tab in the UI
     tabItem(tabName = 'Players',
             fluidRow(
               box(
-                title = "Player Comparison"
-                ,status = "primary"
-                ,solidHeader = TRUE 
-                ,collapsible = TRUE 
-                ,plotlyOutput(outputId = "players_comparison")
+                title = "Player Comparison",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = TRUE,
+                selectInput("player_selector_A", "Select Player A:", choices = unique(sort(df$Name))),
+                selectInput("player_selector_B", "Select Player B:", choices = unique(sort(df$Name))),
+                plotlyOutput(outputId = "players_comparison")
               ),
               box(
-                title = "Summary Stats by Position"
-                ,status = "primary"
-                ,solidHeader = TRUE 
-                ,collapsible = TRUE 
-                ,plotlyOutput(outputId = "summary_stats_position")
+                title = "Summary Stats by Position",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = TRUE,
+                plotlyOutput(outputId = "summary_stats_position")
               ),
               box(
-                title = "Players Potential"
-                ,status = "primary"
-                ,solidHeader = TRUE 
-                ,collapsible = TRUE 
-                ,selectInput("player_club_selector", "Select Club:", choices = unique(sort(df$Club)))
-                ,plotlyOutput(outputId = "player_potential_comparison")
-                ,width=12
+                title = "Players Potential",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = TRUE,
+                selectInput("player_club_selector", "Select Club:", choices = unique(sort(df$Club))),
+                plotlyOutput(outputId = "player_potential_comparison"),
+                width = 12
               )
             )
     ),
@@ -275,17 +278,37 @@ server <- function(input, output, session) {
   })
   
   output$players_comparison <- renderPlotly({
-    ggplot(players, aes(Skill_Moves, Exp, fill = Name))+
-      geom_col(position = "fill")+
-      coord_flip()+
-      scale_fill_manual(values = c("khaki", "seagreen"))+
-      theme_minimal()+
-      geom_hline(yintercept = 0.5, color = "white", size = 1, linetype = 2)+
-      theme(legend.position = "top", axis.text.x=element_blank())+
-      labs(title = "Hazard VS Giroud", 
-           fill = NULL,x = NULL, y = NULL)
+    player_A <- input$player_selector_A
+    player_B <- input$player_selector_B
     
+    # Filter the data for the selected players
+    players_df <- df %>%
+      filter(Name %in% c(player_A, player_B)) %>%
+      gather(Exp, Value, -Name)
+    
+    # Convert Value column to numeric
+    players_df$Value <- as.numeric(players_df$Value)
+    
+    # Normalize values to be between 0 and 1
+    players_df <- players_df %>%
+      group_by(Exp) %>%
+      mutate(Value = Value / sum(Value, na.rm = TRUE))
+    
+    # Remove empty bars
+    players_df <- players_df %>%
+      filter(Value > 0)
+    
+    # Plot the comparison
+    ggplot(players_df, aes(x = Exp, y = Value, fill = Name)) +
+      geom_bar(stat = "identity", position = "stack", width = 0.7) +
+      scale_fill_manual(values = c("khaki", "seagreen")) +
+      theme_minimal() +
+      theme(legend.position = "none", axis.text.x = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank(), axis.text.y = element_blank()) +
+      labs(title = paste(player_A, "VS", player_B),
+           fill = NULL, x = NULL, y = NULL) +
+      ylim(0, 1)  # Set y-axis limits from 0 to 1
   })
+  
   
   output$summary_stats_position <- renderPlotly({
     ggplot(summary_stats, aes(x = Class, y = values, fill = Features)) +
@@ -406,12 +429,9 @@ server <- function(input, output, session) {
       color = "blue"
     )
   })
-
+  
 }
 
 
 # Run the Shiny app
 shinyApp(ui = ui, server = server)
-
-
-
