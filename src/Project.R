@@ -185,7 +185,7 @@ body <- dashboardBody(
                 plotlyOutput(outputId = "summary_stats_position")
               ),
               box(
-                title = "Players Potential",
+                title = "Best Players from the team",
                 status = "primary",
                 solidHeader = TRUE,
                 collapsible = TRUE,
