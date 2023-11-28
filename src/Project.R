@@ -154,7 +154,7 @@ body <- dashboardBody(
             ),
             fluidRow(
               box(
-                title = "ShotPower vs Finishing"
+                title = "Correlation Analysis for Shot Power and Finishing"
                 ,status = "primary"
                 ,solidHeader = TRUE 
                 ,collapsible = TRUE
@@ -265,8 +265,6 @@ server <- function(input, output, session) {
       scale_color_manual(values = c("orangered","steelblue")) +
       labs(
         title = paste(
-          "Correlation Analysis for Shot Power and Finishing",
-          "\n",
           "Spearman: rho =", round(hypo$estimate, digits = 2), ", p-value =", ifelse(hypo$p.value < 0.05, "<0.05", round(hypo$p.value, digits = 3)),
           "\n",
           "Pearson: rho =", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")$estimate, digits = 2), ", p-value =", ifelse(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")$p.value < 0.05, "<0.05", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")$p.value, digits = 3)),
@@ -274,8 +272,10 @@ server <- function(input, output, session) {
           "Kendall: tau =", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$estimate, digits = 2), ", p-value =", ifelse(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$p.value < 0.05, "<0.05", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$p.value, digits = 3))
         ),
         subtitle = "p-value threshold: 0.05"
-      )
+      ) +
+      theme(plot.title = element_text(size = 10, face = "bold"))
   })
+  
   
   # Create dynamic UI for player selection based on the selected team
   output$player_selector_A_ui <- renderUI({
@@ -333,7 +333,7 @@ server <- function(input, output, session) {
       labs(x = NULL, y = NULL)
   })
   
-
+  
   output$player_potential_comparison <- renderPlotly({
     selected_club <- input$player_club_selector
     club_df <- df %>% 
@@ -439,4 +439,3 @@ server <- function(input, output, session) {
 
 # Run the Shiny app
 shinyApp(ui = ui, server = server)
-
