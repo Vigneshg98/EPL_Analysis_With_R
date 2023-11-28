@@ -256,15 +256,25 @@ server <- function(input, output, session) {
     cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")
     hypo <- cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "spearman")
     
-    ggplot(forward_df, aes(Shot_Power, Finishing, color = Preferred_Foot))+
-      geom_text(aes(label = Name))+
-      theme_minimal()+
-      theme(legend.position = "bottom")+
-      geom_jitter(alpha = 0.3, size = 2.5, width = 0.3, height = 0.3)+
-      geom_smooth(aes(group = 1), method = "lm", color = "gray40", lty = 2, se = FALSE, size = 0.6)+
-      scale_color_manual(values = c("orangered","steelblue"))+
-      labs(title = paste("Spearman Correlation Coefficient:", round(hypo$estimate, digits = 2)),
-           subtitle = "p-value < 0.05")
+    ggplot(forward_df, aes(Shot_Power, Finishing, color = Preferred_Foot)) +
+      geom_text(aes(label = Name)) +
+      theme_minimal() +
+      theme(legend.position = "bottom") +
+      geom_jitter(alpha = 0.3, size = 2.5, width = 0.3, height = 0.3) +
+      geom_smooth(aes(group = 1), method = "lm", color = "gray40", lty = 2, se = FALSE, size = 0.6) +
+      scale_color_manual(values = c("orangered","steelblue")) +
+      labs(
+        title = paste(
+          "Correlation Analysis for Shot Power and Finishing",
+          "\n",
+          "Spearman: rho =", round(hypo$estimate, digits = 2), ", p-value =", ifelse(hypo$p.value < 0.05, "<0.05", round(hypo$p.value, digits = 3)),
+          "\n",
+          "Pearson: rho =", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")$estimate, digits = 2), ", p-value =", ifelse(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")$p.value < 0.05, "<0.05", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")$p.value, digits = 3)),
+          "\n",
+          "Kendall: tau =", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$estimate, digits = 2), ", p-value =", ifelse(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$p.value < 0.05, "<0.05", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$p.value, digits = 3))
+        ),
+        subtitle = "p-value threshold: 0.05"
+      )
   })
   
   # Create dynamic UI for player selection based on the selected team
