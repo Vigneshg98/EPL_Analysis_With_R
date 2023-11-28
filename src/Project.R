@@ -216,7 +216,14 @@ body <- dashboardBody(
 
 # Define the UI for the Shiny app
 ui = dashboardPage(skin= "blue",
-                   dashboardHeader(title = "EPL Report"),
+                   dashboardHeader(
+                     title = div(
+                       HTML('<i class="fa-sharp fa-regular fa-futbol fa-spin"></i>&nbsp;'),
+                       "EPL Stats Spotlight",
+                       style = "display: flex; align-items: center; font-size: 16px;"
+                     )
+                     
+                   ),
                    sidebar,
                    body
 )
@@ -269,9 +276,10 @@ server <- function(input, output, session) {
           "\n",
           "Pearson: rho =", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")$estimate, digits = 2), ", p-value =", ifelse(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")$p.value < 0.05, "<0.05", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "pearson")$p.value, digits = 3)),
           "\n",
-          "Kendall: tau =", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$estimate, digits = 2), ", p-value =", ifelse(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$p.value < 0.05, "<0.05", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$p.value, digits = 3))
-        ),
-        subtitle = "p-value threshold: 0.05"
+          "Kendall: tau =", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$estimate, digits = 2), ", p-value =", ifelse(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$p.value < 0.05, "<0.05", round(cor.test(forward_df$Shot_Power, forward_df$Finishing, method = "kendall")$p.value, digits = 3)),
+          "\n",
+          "p-value threshold: 0.05"
+        )
       ) +
       theme(plot.title = element_text(size = 10, face = "bold"))
   })
