@@ -340,7 +340,7 @@ server <- function(input, output, session) {
       filter(Club == selected_club) %>% 
       select(Name, Overall, Potential) %>% 
       arrange(-Overall) %>% 
-      head(10) %>% 
+      head(12) %>% 
       gather(variable, Exp, -Name)
     
     ggplot(club_df, aes(Name, Exp, fill = variable))+
