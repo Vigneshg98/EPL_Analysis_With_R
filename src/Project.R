@@ -203,8 +203,8 @@ body <- dashboardBody(
                 ,status = "primary"
                 ,solidHeader = TRUE 
                 ,collapsible = TRUE 
-                ,selectInput("club_selector_A", "Team A", choices = unique(sort(match_results_df$HomeTeam)))
-                ,selectInput("club_selector_B", "Team B", choices = unique(sort(match_results_df$HomeTeam)))
+                ,selectInput("club_selector_A", "Home Team", choices = unique(sort(match_results_df$HomeTeam)))
+                ,selectInput("club_selector_B", "Away Team", choices = unique(sort(match_results_df$HomeTeam)))
                 ,plotlyOutput(outputId = "match_prediction")
                 ,style = "height: 25vh;"
               ),
